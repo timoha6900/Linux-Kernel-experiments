@@ -1,0 +1,86 @@
+From 9f9c1f19eb8976ea2a7f28c32b163e683bd11774 Mon Sep 17 00:00:00 2001
+From: Tymofii Ostafiev <tymofii.ostafiev@globallogic.com>
+Date: Thu, 23 Apr 2020 17:02:52 +0300
+Subject: [PATCH] Added module Hello_GL
+
+Added file hello.c, egited files Kconfig and Makefile in drivers/misc/
+
+Signed-off-by: Tymofii Ostafiev <tymofii.ostafiev@globallogic.com>
+---
+ drivers/misc/Kconfig  |  7 +++++++
+ drivers/misc/Makefile |  1 +
+ drivers/misc/hello.c  | 32 ++++++++++++++++++++++++++++++++
+ 3 files changed, 40 insertions(+)
+ create mode 100644 drivers/misc/hello.c
+
+diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
+index 3726eacdf65d..bc374628071b 100644
+--- a/drivers/misc/Kconfig
++++ b/drivers/misc/Kconfig
+@@ -10,6 +10,13 @@ config SENSORS_LIS3LV02D
+ 	select INPUT_POLLDEV
+ 	default n
+ 
++config HELLO_GL
++	tristate "HELLO GL"
++	default m
++	help
++	  If you say yes here, you get testing Hello modele.
++
++
+ config AD525X_DPOT
+ 	tristate "Analog Devices Digital Potentiometers"
+ 	depends on (I2C || SPI) && SYSFS
+diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
+index af22bbc3d00c..15a96fb99661 100644
+--- a/drivers/misc/Makefile
++++ b/drivers/misc/Makefile
+@@ -5,6 +5,7 @@
+ 
+ obj-$(CONFIG_IBM_ASM)		+= ibmasm/
+ obj-$(CONFIG_IBMVMC)		+= ibmvmc.o
++obj-m$(CONFIG_HELLO_GC)		+= hello.o
+ obj-$(CONFIG_AD525X_DPOT)	+= ad525x_dpot.o
+ obj-$(CONFIG_AD525X_DPOT_I2C)	+= ad525x_dpot-i2c.o
+ obj-$(CONFIG_AD525X_DPOT_SPI)	+= ad525x_dpot-spi.o
+diff --git a/drivers/misc/hello.c b/drivers/misc/hello.c
+new file mode 100644
+index 000000000000..f3df0d04991d
+--- /dev/null
++++ b/drivers/misc/hello.c
+@@ -0,0 +1,32 @@
++#include <linux/init.h>
++#include <linux/module.h>
++#include <linux/kernel.h>
++
++static char *username = "User";
++
++module_param(username, charp, 0);
++MODULE_PARM_DESC(username, "User name:");
++
++static int __init hello_init(void)
++{
++/*	int a, b, c;
++	int *pi;
++	a = 5;
++	pi = &a;
++	b = *pi;
++	pi = NULL;
++	c = *pi; */
++	printk(KERN_INFO "Hello, %s!\n", username);
++	return 0;
++}
++
++static void __exit hello_exit(void)
++{
++	printk(KERN_INFO "Goodbye, %s!\n", username);
++}
++
++module_init(hello_init);
++module_exit(hello_exit);
++MODULE_LICENSE("GPL");
++MODULE_DESCRIPTION("Hello module");
++MODULE_AUTHOR("Vasya Pupkin");
+-- 
+2.17.1
+
