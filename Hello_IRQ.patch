@@ -1,0 +1,85 @@
+From ccedbe3c065f730d7cfef5d24ccc6fe2eb89c032 Mon Sep 17 00:00:00 2001
+From: Tymofii Ostafiev <tymofii.ostafiev@globallogic.com>
+Date: Fri, 24 Apr 2020 11:32:03 +0300
+Subject: [PATCH] Hello_irq
+
+Added interrupt handling to the "Hello" module.
+It print message when interrupt happens.
+This interrupt shared between original amba-pl011.c and hello module.
+
+Signed-off-by: Tymofii Ostafiev <tymofii.ostafiev@globallogic.com>
+---
+ drivers/misc/hello.c            | 33 +++++++++++++++++++++------------
+ drivers/tty/serial/amba-pl011.c |  2 +-
+ 2 files changed, 22 insertions(+), 13 deletions(-)
+
+diff --git a/drivers/misc/hello.c b/drivers/misc/hello.c
+index f3df0d04991d..91728a390201 100644
+--- a/drivers/misc/hello.c
++++ b/drivers/misc/hello.c
+@@ -1,28 +1,37 @@
+ #include <linux/init.h>
+ #include <linux/module.h>
+ #include <linux/kernel.h>
++#include <linux/serial_core.h>
++#include <linux/irqreturn.h>
+ 
+-static char *username = "User";
++typedef struct {
++	unsigned int irqn;
++} device_id;
+ 
+-module_param(username, charp, 0);
+-MODULE_PARM_DESC(username, "User name:");
++static irqreturn_t intr_handler(int irqn, void *dev)
++{
++	printk(KERN_INFO "Interrupt %d!", irqn);
++	return IRQ_HANDLED;
++}
++
++device_id hello_dev = { .irqn = 54 };
+ 
+ static int __init hello_init(void)
+ {
+-/*	int a, b, c;
+-	int *pi;
+-	a = 5;
+-	pi = &a;
+-	b = *pi;
+-	pi = NULL;
+-	c = *pi; */
+-	printk(KERN_INFO "Hello, %s!\n", username);
++	printk(KERN_INFO "Hello, world!\n");
++
++	if(request_irq(hello_dev.irqn, intr_handler, IRQF_SHARED, "hello_device", &hello_dev)){
++		printk(KERN_ERR "hello_device: cannot register IRQ %d\n", hello_dev.irqn);
++		return -EIO;
++	}
++
+ 	return 0;
+ }
+ 
+ static void __exit hello_exit(void)
+ {
+-	printk(KERN_INFO "Goodbye, %s!\n", username);
++	free_irq(hello_dev.irqn, &hello_dev);
++	printk(KERN_INFO "Goodbye, world!\n");
+ }
+ 
+ module_init(hello_init);
+diff --git a/drivers/tty/serial/amba-pl011.c b/drivers/tty/serial/amba-pl011.c
+index ebd33c0232e6..6518edd9254d 100644
+--- a/drivers/tty/serial/amba-pl011.c
++++ b/drivers/tty/serial/amba-pl011.c
+@@ -1717,7 +1717,7 @@ static int pl011_allocate_irq(struct uart_amba_port *uap)
+ {
+ 	pl011_write(uap->im, uap, REG_IMSC);
+ 
+-	return request_irq(uap->port.irq, pl011_int, 0, "uart-pl011", uap);
++	return request_irq(uap->port.irq, pl011_int, IRQF_SHARED, "uart-pl011", uap);
+ }
+ 
+ /*
+-- 
+2.17.1
+
