@@ -1,0 +1,84 @@
+From 20e1f7aa52f60a5a5097e1b31b21fda6ac46dd59 Mon Sep 17 00:00:00 2001
+From: Tymofii Ostafiev <tymofii.ostafiev@globallogic.com>
+Date: Fri, 24 Apr 2020 12:50:36 +0300
+Subject: [PATCH] Hello_IRQ_Threaded
+
+Interrupt handler switched to threaded interrupt version,
+print current process ID for interrupted context.
+
+Signed-off-by: Tymofii Ostafiev <tymofii.ostafiev@globallogic.com>
+---
+ drivers/misc/hello.c            | 21 ++++++++++++++++-----
+ drivers/tty/serial/amba-pl011.c |  2 ++
+ 2 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/misc/hello.c b/drivers/misc/hello.c
+index 91728a390201..0b7086fb2f9d 100644
+--- a/drivers/misc/hello.c
++++ b/drivers/misc/hello.c
+@@ -3,6 +3,7 @@
+ #include <linux/kernel.h>
+ #include <linux/serial_core.h>
+ #include <linux/irqreturn.h>
++#include <linux/device.h>
+ 
+ typedef struct {
+ 	unsigned int irqn;
+@@ -10,7 +11,13 @@ typedef struct {
+ 
+ static irqreturn_t intr_handler(int irqn, void *dev)
+ {
+-	printk(KERN_INFO "Interrupt %d!", irqn);
++	pr_info("Hello, %d!", irqn);
++	return IRQ_WAKE_THREAD;
++}
++
++static irqreturn_t intr_job(int irqn, void *dev)
++{
++	pr_info("%s: this is gandler irq %d %d\n", __func__, irqn, current->pid);
+ 	return IRQ_HANDLED;
+ }
+ 
+@@ -18,10 +25,14 @@ device_id hello_dev = { .irqn = 54 };
+ 
+ static int __init hello_init(void)
+ {
+-	printk(KERN_INFO "Hello, world!\n");
++	int rc;
++	pr_info("Hello, world!\n");
++
++	rc = request_threaded_irq(hello_dev.irqn, intr_handler, intr_job,
++				IRQF_SHARED, "hello_device", &hello_dev);
+ 
+-	if(request_irq(hello_dev.irqn, intr_handler, IRQF_SHARED, "hello_device", &hello_dev)){
+-		printk(KERN_ERR "hello_device: cannot register IRQ %d\n", hello_dev.irqn);
++	if(rc){
++		pr_err("hello_device: cannot register IRQ %d\n", hello_dev.irqn);
+ 		return -EIO;
+ 	}
+ 
+@@ -31,7 +42,7 @@ static int __init hello_init(void)
+ static void __exit hello_exit(void)
+ {
+ 	free_irq(hello_dev.irqn, &hello_dev);
+-	printk(KERN_INFO "Goodbye, world!\n");
++	pr_info("Goodbye, world!\n");
+ }
+ 
+ module_init(hello_init);
+diff --git a/drivers/tty/serial/amba-pl011.c b/drivers/tty/serial/amba-pl011.c
+index 6518edd9254d..65748ae73cc7 100644
+--- a/drivers/tty/serial/amba-pl011.c
++++ b/drivers/tty/serial/amba-pl011.c
+@@ -1482,6 +1482,8 @@ static irqreturn_t pl011_int(int irq, void *dev_id)
+ 	unsigned int status, pass_counter = AMBA_ISR_PASS_LIMIT;
+ 	int handled = 0;
+ 
++	pr_info("%s: this is gandler irq %d %d\n", __func__, irq, current->pid);
++
+ 	spin_lock_irqsave(&uap->port.lock, flags);
+ 	status = pl011_read(uap, REG_RIS) & uap->im;
+ 	if (status) {
+-- 
+2.17.1
+
